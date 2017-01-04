@@ -1,6 +1,7 @@
 package org.moisturemonitor.actors
 
 import akka.actor.{Actor, ActorLogging}
+import org.joda.time.DateTime
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
 
@@ -8,7 +9,7 @@ object SensorMessages {
 
   case object GetMeasure
 
-  case class Measure(temperature: Double, relativeMoisture: Double)
+  case class Measure(timestamp:DateTime, temperature: Double, relativeMoisture: Double)
 
 }
 
@@ -19,8 +20,8 @@ class SensorActor extends Actor with ActorLogging {
   def receive = {
     case GetMeasure => {
       log info s"${self.path.name} Taking a measures"
-      val (temperature, relativeMoisture) = Sensor.measure
-      sender() ! Measure(temperature, relativeMoisture)
+      val (timestamp, temperature, relativeMoisture) = Sensor.measure
+      sender() ! Measure(timestamp, temperature, relativeMoisture)
     }
     case unexpected => println(s"${self.path.name} receive ${unexpected}")
   }
@@ -31,6 +32,6 @@ object Sensor {
     val temperature = ThreadLocalRandom.current().nextDouble(15, 30)
     val relativeMoisture = ThreadLocalRandom.current().nextDouble(45, 95)
 
-    (temperature, relativeMoisture)
+    (DateTime.now, temperature, relativeMoisture)
   }
 }

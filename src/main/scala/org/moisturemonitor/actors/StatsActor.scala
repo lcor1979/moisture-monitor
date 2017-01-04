@@ -1,30 +1,70 @@
 package org.moisturemonitor.actors
 
-import akka.actor.{Actor, ActorLogging}
-
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.forkjoin.ThreadLocalRandom
+import akka.actor.ActorLogging
+import akka.persistence.{PersistentActor, SnapshotOffer}
+import org.joda.time.DateTime
+import org.moisturemonitor.actors.SensorMessages.Measure
 
 object StatsMessages {
-  case class AddMeasure(temperature: Double, relativeMoisture: Double)
+
+  case class AddMeasure(measure: Measure)
 
 }
 
-class StatsActor extends Actor with ActorLogging {
-  val data = ArrayBuffer.empty[(Double, Double)]
+case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0)
+
+object Stats {
+  def apply(values: List[Double]): Stats = {
+    val average = values.sum / values.length.toDouble
+    val variance = values.fold(0.0)((result, value) => result + (value - average) * (value - average)) / values.length.toDouble
+    val stdDeviation = Math.sqrt(variance)
+
+    apply(average, variance, stdDeviation)
+  }
+}
+
+case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) {
+  def update(measure: Measure): StatsState = {
+    val allMeasures = measure :: events.filter(event => event.timestamp isAfter DateTime.now.minusSeconds(5));
+    val temperatures = allMeasures.map(m => m.temperature)
+    val relativeMoistures = allMeasures.map(m => m.relativeMoisture)
+
+    copy(allMeasures, Stats(temperatures), Stats(relativeMoistures))
+  }
+
+  def size: Int = events.length
+}
+
+class StatsActor extends PersistentActor with ActorLogging {
 
   import StatsMessages._
 
-  def receive = {
-    case AddMeasure(temperature, relativeMoisture) => {
-      var measure = (temperature, relativeMoisture)
-      log info s"${self.path.name} Add measures : ${measure}"
-      data += measure
-      log info s"${self.path.name} All measures : ${data}"
+  override def persistenceId = "stats-actor"
 
-      var sum = data.foldLeft((0.0, 0.0))((result, currentMeasure) => (result._1 + currentMeasure._1, result._2 + currentMeasure._2));
-      var (avgTemp, avgMoist) = (sum._1 / data.length, sum._2 / data.length)
-      println(f"Avg : ${avgTemp}%.1f / ${avgMoist}%.1f")
+  var state = StatsState()
+
+  def updateState(measure: Measure): Unit =
+    state = state.update(measure)
+
+  def numEvents =
+    state.size
+
+  val receiveRecover: Receive = {
+    case measure: Measure => updateState(measure)
+    case SnapshotOffer(_, snapshot: StatsState) => state = snapshot
+  }
+
+  val receiveCommand: Receive = {
+    case AddMeasure(measure) => {
+
+      log info s"${self.path.name} Add measures : ${measure}"
+      persist(measure)(updateState)
+
+      log info s"${self.path.name} All measures : ${state}"
+
+      if (state.relativeMoistureStats.stdDeviation > 10.0) {
+        log.error(s"Standard deviation is too high ${state.relativeMoistureStats.stdDeviation}")
+      }
     }
     case unexpected => println(s"${self.path.name} receive ${unexpected}")
   }

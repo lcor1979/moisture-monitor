@@ -25,7 +25,7 @@ with WordSpecLike with Matchers with BeforeAndAfterAll {
         sensorRef ! GetMeasure
 
         expectMsgPF(500 millis) {
-          case Measure(temperature, relativeMoisture) => {
+          case Measure(_, temperature, relativeMoisture) => {
             temperature should (be >= 15.0 and be <= 30.0)
             relativeMoisture should (be >= 60.0 and be <= 100.0)
           }
