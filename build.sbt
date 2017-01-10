@@ -4,6 +4,8 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
+resolvers += "scalac repo" at "https://raw.githubusercontent.com/ScalaConsultants/mvn-repo/master/"
+
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
   // Akka
@@ -15,5 +17,5 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % "2.4.14",
   "org.scalaj" %% "scalaj-time" % "0.8",
   // Slack
-  "com.flyberrycapital" %% "scala-slack" % "0.3.0"
+  "io.scalac" %% "slack-scala-bot-core" % "0.2.1"
 )
