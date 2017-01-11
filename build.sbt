@@ -4,7 +4,13 @@ version := "1.0"
 
 scalaVersion := "2.11.8"
 
-resolvers += "scalac repo" at "https://raw.githubusercontent.com/ScalaConsultants/mvn-repo/master/"
+fork in run := true
+
+javaOptions in run += "-Dconfig.resource=user-settings.conf"
+
+resolvers ++= Seq(
+  "scalac repo" at "https://raw.githubusercontent.com/ScalaConsultants/mvn-repo/master/"
+)
 
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
@@ -17,5 +23,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % "2.4.14",
   "org.scalaj" %% "scalaj-time" % "0.8",
   // Slack
-  "io.scalac" %% "slack-scala-bot-core" % "0.2.1"
+  "io.scalac" %% "slack-scala-bot-core" % "0.2.1",
+  // Config
+  "com.typesafe" % "config" % "1.3.0"
 )

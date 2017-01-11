@@ -6,6 +6,8 @@ import akka.actor.{ActorContext, ActorRef, ActorSystem, Props}
 import akka.contrib.throttle.Throttler.{RateInt, SetTarget}
 import akka.contrib.throttle.TimerBasedThrottler
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
+import com.typesafe.sslconfig.util.ConfigLoader
 import io.scalac.slack.{BotModules, MessageEventBus}
 import io.scalac.slack.api.{BotInfo, Start}
 import io.scalac.slack.bots.AbstractBot
@@ -28,6 +30,9 @@ object MoistureMonitorMain extends Shutdownable {
   def main(args: Array[String]): Unit = {
 
     import system.dispatcher
+
+    val apiKey = ConfigFactory.load().getConfig("api").getString("key");
+    println(s"***************Api key : ${apiKey}")
 
     val sensor = system.actorOf(Props[SensorActor], "sensorActor")
     val stats = system.actorOf(Props[StatsActor], "statsActor")
