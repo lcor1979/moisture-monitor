@@ -1,6 +1,7 @@
 package org.moisturemonitor.actors
 
 import akka.actor.{Actor, ActorLogging}
+import no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializable
 import org.joda.time.DateTime
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
@@ -9,7 +10,7 @@ object SensorMessages {
 
   case object GetMeasure
 
-  case class Measure(timestamp:DateTime, temperature: Double, relativeMoisture: Double)
+  case class Measure(timestamp:DateTime, temperature: Double, relativeMoisture: Double) extends JacksonJsonSerializable
 
 }
 

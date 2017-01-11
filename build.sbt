@@ -24,6 +24,6 @@ libraryDependencies ++= Seq(
   "org.scalaj" %% "scalaj-time" % "0.8",
   // Slack
   "io.scalac" %% "slack-scala-bot-core" % "0.2.1",
-  // Config
-  "com.typesafe" % "config" % "1.3.0"
+  "no.nextgentel.oss.akka-tools" %% "akka-tools-json-serializing" % "1.1.1",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % "2.4.0"
 )

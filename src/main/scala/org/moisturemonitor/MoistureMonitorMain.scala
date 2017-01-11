@@ -6,6 +6,9 @@ import akka.actor.{ActorContext, ActorRef, ActorSystem, Props}
 import akka.contrib.throttle.Throttler.{RateInt, SetTarget}
 import akka.contrib.throttle.TimerBasedThrottler
 import akka.util.Timeout
+import com.fasterxml.jackson.databind.{ObjectMapper, SerializationFeature}
+import com.fasterxml.jackson.datatype.joda.JodaModule
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
 import com.typesafe.sslconfig.util.ConfigLoader
 import io.scalac.slack.{BotModules, MessageEventBus}
@@ -31,8 +34,12 @@ object MoistureMonitorMain extends Shutdownable {
 
     import system.dispatcher
 
-    val apiKey = ConfigFactory.load().getConfig("api").getString("key");
-    println(s"***************Api key : ${apiKey}")
+    val objectMapper = new ObjectMapper()
+    objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false)
+    objectMapper.registerModule(new DefaultScalaModule)
+    objectMapper.registerModule(new JodaModule)
+
+    no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializer.setObjectMapper(objectMapper)
 
     val sensor = system.actorOf(Props[SensorActor], "sensorActor")
     val stats = system.actorOf(Props[StatsActor], "statsActor")

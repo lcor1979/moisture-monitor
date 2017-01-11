@@ -2,6 +2,7 @@ package org.moisturemonitor.actors
 
 import akka.actor.ActorLogging
 import akka.persistence.{PersistentActor, SnapshotOffer}
+import no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializable
 import org.joda.time.DateTime
 import org.moisturemonitor.actors.SensorMessages.Measure
 
@@ -13,7 +14,7 @@ object StatsMessages {
 
 case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0)
 
-object Stats {
+object Stats extends JacksonJsonSerializable {
   def apply(values: List[Double]): Stats = {
     val average = values.sum / values.length.toDouble
     val variance = values.fold(0.0)((result, value) => result + (value - average) * (value - average)) / values.length.toDouble
@@ -23,7 +24,7 @@ object Stats {
   }
 }
 
-case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) {
+case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) extends JacksonJsonSerializable {
   def update(measure: Measure): StatsState = {
     val allMeasures = measure :: events.filter(event => event.timestamp isAfter DateTime.now.minusSeconds(5));
     val temperatures = allMeasures.map(m => m.temperature)
@@ -59,6 +60,9 @@ class StatsActor extends PersistentActor with ActorLogging {
 
       log info s"${self.path.name} Add measures : ${measure}"
       persist(measure)(updateState)
+
+      // Save snapshot
+      saveSnapshot(state);
 
       log info s"${self.path.name} All measures : ${state}"
 
