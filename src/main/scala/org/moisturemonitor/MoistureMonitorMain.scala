@@ -41,7 +41,7 @@ object MoistureMonitorMain extends Shutdownable {
 
     no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializer.setObjectMapper(objectMapper)
 
-    val sensor = system.actorOf(Props[SensorActor], "sensorActor")
+    val sensor = system.actorOf(Props(classOf[SensorActor], FakeSensor), "sensorActor")
     val stats = system.actorOf(Props[StatsActor], "statsActor")
     val messaging = system.actorOf(Props(classOf[MessagingActor], slackBot), "messagingActor")
     val messagingThrottler = system.actorOf(Props(classOf[TimerBasedThrottler],

@@ -9,31 +9,21 @@ import org.moisturemonitor.actors.SensorMessages.Measure
 object StatsMessages {
 
   case class AddMeasure(measure: Measure)
-
-}
-
-case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0)
-
-object Stats extends JacksonJsonSerializable {
-  def apply(values: List[Double]): Stats = {
-    val average = values.sum / values.length.toDouble
-    val variance = values.fold(0.0)((result, value) => result + (value - average) * (value - average)) / values.length.toDouble
-    val stdDeviation = Math.sqrt(variance)
-
-    apply(average, variance, stdDeviation)
-  }
-}
-
-case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) extends JacksonJsonSerializable {
-  def update(measure: Measure): StatsState = {
-    val allMeasures = measure :: events.filter(event => event.timestamp isAfter DateTime.now.minusSeconds(5));
-    val temperatures = allMeasures.map(m => m.temperature)
-    val relativeMoistures = allMeasures.map(m => m.relativeMoisture)
-
-    copy(allMeasures, Stats(temperatures), Stats(relativeMoistures))
+  case class GetStats()
+  case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0) extends JacksonJsonSerializable
+  case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) extends JacksonJsonSerializable {
+    def size: Int = events.length
   }
 
-  def size: Int = events.length
+  object Stats {
+    def apply(values: List[Double]): Stats = {
+      val average = values.sum / values.length.toDouble
+      val variance = values.fold(0.0)((result, value) => result + (value - average) * (value - average)) / values.length.toDouble
+      val stdDeviation = Math.sqrt(variance)
+
+      apply(average, variance, stdDeviation)
+    }
+  }
 }
 
 class StatsActor extends PersistentActor with ActorLogging {
@@ -44,8 +34,13 @@ class StatsActor extends PersistentActor with ActorLogging {
 
   var state = StatsState()
 
-  def updateState(measure: Measure): Unit =
-    state = state.update(measure)
+  def updateState(measure: Measure): Unit = {
+    val allMeasures = measure :: state.events.filter(event => event.timestamp isAfter DateTime.now.minusDays(1));
+    val temperatures = allMeasures.map(m => m.temperature)
+    val relativeMoistures = allMeasures.map(m => m.relativeMoisture)
+
+    state = state.copy(allMeasures, Stats(temperatures), Stats(relativeMoistures))
+  }
 
   def numEvents =
     state.size
@@ -59,17 +54,22 @@ class StatsActor extends PersistentActor with ActorLogging {
     case AddMeasure(measure) => {
 
       log info s"${self.path.name} Add measures : ${measure}"
-      persist(measure)(updateState)
+      persist(measure) { event =>
+        updateState(measure)
 
-      // Save snapshot
-      saveSnapshot(state);
 
-      log info s"${self.path.name} All measures : ${state}"
+        // Save snapshot
+        saveSnapshot(state);
 
-      if (state.relativeMoistureStats.stdDeviation > 10.0) {
-        log.error(s"Standard deviation is too high ${state.relativeMoistureStats.stdDeviation}")
+        log info s"${self.path.name} All measures : ${state}"
+
+        if (state.relativeMoistureStats.stdDeviation > 10.0) {
+          log.error(s"Standard deviation is too high ${state.relativeMoistureStats.stdDeviation}")
+        }
       }
+
     }
+    case GetStats => sender ! state
     case unexpected => println(s"${self.path.name} receive ${unexpected}")
   }
 }

@@ -38,7 +38,7 @@ class BotsBundle(eventBus: MessageEventBus) extends BotModules {
   override def registerModules(context: ActorContext, websocketClient: ActorRef) = {
     context.actorOf(Props(classOf[CommandsRecognizerBot], eventBus), "commandProcessor")
     context.actorOf(Props(classOf[HelpBot], eventBus), "helpBot")
-    context.actorOf(Props(classOf[MoistureBot], eventBus), "moisture-bot")
+    context.actorOf(Props(classOf[MoistureBot], eventBus, "user/sensorActor"), "moisture-bot")
   }
 }
 
@@ -54,7 +54,7 @@ class CustomSlackBotActor(modules: BotModules, eventBus: MessageEventBus, master
   }
 }
 
-class MoistureBot(override val bus: MessageEventBus) extends AbstractBot {
+class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) extends AbstractBot {
 
   override def help(channel: String): OutboundMessage =
     OutboundMessage(channel, s"Usage: $$measure")
@@ -62,7 +62,7 @@ class MoistureBot(override val bus: MessageEventBus) extends AbstractBot {
   override def act: Receive = {
     case Command("measure", _, BaseMessage(_, channel, _, _, _)) =>
       implicit val timeout = Timeout(5 seconds)
-      val sensorRef = Await.result(context.system.actorSelection("user/sensorActor").resolveOne(), timeout.duration)
+      val sensorRef = Await.result(context.system.actorSelection(sensorActorName).resolveOne(), timeout.duration)
       val measure:Measure = Await.result(ask(sensorRef, GetMeasure), timeout.duration).asInstanceOf[Measure]
 
       publish(OutboundMessage(channel, format(measure)))

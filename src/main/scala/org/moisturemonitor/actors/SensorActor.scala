@@ -14,21 +14,25 @@ object SensorMessages {
 
 }
 
-class SensorActor extends Actor with ActorLogging {
+class SensorActor(sensor:Sensor) extends Actor with ActorLogging {
 
   import SensorMessages._
 
   def receive = {
     case GetMeasure => {
       log info s"${self.path.name} Taking a measures"
-      val (timestamp, temperature, relativeMoisture) = Sensor.measure
+      val (timestamp, temperature, relativeMoisture) = sensor.measure
       sender() ! Measure(timestamp, temperature, relativeMoisture)
     }
     case unexpected => println(s"${self.path.name} receive ${unexpected}")
   }
 }
 
-object Sensor {
+trait Sensor {
+  def measure:(DateTime, Double, Double)
+}
+
+object FakeSensor extends Sensor{
   def measure = {
     val temperature = ThreadLocalRandom.current().nextDouble(15, 30)
     val relativeMoisture = ThreadLocalRandom.current().nextDouble(45, 95)
