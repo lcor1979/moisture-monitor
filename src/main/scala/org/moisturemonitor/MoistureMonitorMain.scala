@@ -52,7 +52,7 @@ object MoistureMonitorMain extends Shutdownable {
     var mainActor = system.actorOf(Props(classOf[MainActor], sensor, stats, messagingThrottler), "mainActor")
 
     system.scheduler.scheduleOnce(0 seconds, slackBot, Start)
-    system.scheduler.schedule(0 seconds, 2 seconds, mainActor, GetMeasure)
+    system.scheduler.schedule(0 seconds, 10 seconds, mainActor, GetMeasure)
 
     sys.addShutdownHook(shutdown())
 

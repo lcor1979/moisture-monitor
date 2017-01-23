@@ -53,23 +53,18 @@ class StatsActor extends PersistentActor with ActorLogging {
   val receiveCommand: Receive = {
     case AddMeasure(measure) => {
 
-      log info s"${self.path.name} Add measures : ${measure}"
-      persist(measure) { event =>
+      log debug s"${self.path.name} Add measure to stats : ${measure}"
+      persist(measure) { _ =>
         updateState(measure)
-
 
         // Save snapshot
         saveSnapshot(state);
 
-        log info s"${self.path.name} All measures : ${state}"
-
-        if (state.relativeMoistureStats.stdDeviation > 10.0) {
-          log.error(s"Standard deviation is too high ${state.relativeMoistureStats.stdDeviation}")
-        }
+        sender ! state
       }
 
     }
     case GetStats => sender ! state
-    case unexpected => println(s"${self.path.name} receive ${unexpected}")
+    case unexpected => log warning s"${self.path.name} receive ${unexpected}"
   }
 }

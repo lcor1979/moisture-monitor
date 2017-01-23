@@ -1,7 +1,7 @@
 package org.moisturemonitor.actors
 
 import akka.actor.{Actor, ActorRef}
-import org.moisturemonitor.actors.MessagingMessages.SendMeasureMessage
+import org.moisturemonitor.actors.MessagingMessages.SendMessage
 
 class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends Actor {
 
@@ -12,15 +12,25 @@ class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends 
     case GetMeasure => {
       sensor ! GetMeasure
     }
-    case measure: Measure if measure.relativeMoisture > 80.0 => {
-      println(f"ALERT ${self.path.name} Received ${measure.temperature}%.1f° / ${measure.relativeMoisture}%.1f%%")
+    case measure: Measure if measure.batteryLevel < 10.0 => {
+      println(f"ALERT ${self.path.name} Low battery : ${measure}")
       addMeasure(measure)
-      messaging ! SendMeasureMessage(measure)
+      messaging ! SendMessage(Some("Low battery"), Some(measure))
+    }
+    case measure: Measure if measure.relativeMoisture > 80.0 => {
+      println(f"ALERT ${self.path.name} Moisture too high ${measure}")
+      addMeasure(measure)
+      messaging ! SendMessage(Some("Moisture too high"), Some(measure))
     }
     case measure: Measure => {
-      println(f"${self.path.name} Received ${measure.temperature}%.1f° / ${measure.relativeMoisture}%.1f%%")
+      println(f"${self.path.name} Received ${measure}")
       addMeasure(measure)
     }
+    case statsState: StatsState if statsState.relativeMoistureStats.stdDeviation > 10.0 => {
+      println(f"ALERT ${self.path.name} Moisture Stats standard deviation too high ${statsState.relativeMoistureStats.stdDeviation}")
+      messaging ! SendMessage(Some("Moisture Stats standard deviation too high"), Some(statsState))
+    }
+
     case unexpected => println(s"${self.path.name} Receive ${unexpected}")
   }
 
