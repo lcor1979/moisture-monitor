@@ -16,10 +16,17 @@
 
 package org.moisturemonitor.actors
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.typesafe.config.ConfigFactory
 import org.moisturemonitor.actors.MessagingMessages.SendMessage
 
-class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends Actor {
+class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends Actor with ActorLogging{
+
+  val config = ConfigFactory.defaultApplication().getConfig("app-settings.alarm-thresholds")
+
+  val batteryLevelThreshold = config.getDouble("batteryLevel")
+  val relativeMoistureThreshold = config.getDouble("relativeMoisture")
+  val relativeMoistureDeltaFromAverageThreshold = config.getDouble("relativeMoistureDeltaFromAverage")
 
   import SensorMessages._
   import StatsMessages._
@@ -28,26 +35,22 @@ class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends 
     case GetMeasure => {
       sensor ! GetMeasure
     }
-    case measure: Measure if measure.batteryLevel < 10.0 => {
-      println(f"ALERT ${self.path.name} Low battery : ${measure}")
+    case measure: Measure if measure.batteryLevel < batteryLevelThreshold => {
       addMeasure(measure)
       messaging ! SendMessage(Some("Low battery"), Some(measure))
     }
-    case measure: Measure if measure.relativeMoisture > 80.0 => {
-      println(f"ALERT ${self.path.name} Moisture too high ${measure}")
+    case measure: Measure if measure.relativeMoisture > relativeMoistureThreshold => {
       addMeasure(measure)
       messaging ! SendMessage(Some("Moisture too high"), Some(measure))
     }
     case measure: Measure => {
-      println(f"${self.path.name} Received ${measure}")
       addMeasure(measure)
     }
-    case statsState: StatsState if statsState.relativeMoistureStats.stdDeviation > 10.0 => {
-      println(f"ALERT ${self.path.name} Moisture Stats standard deviation too high ${statsState.relativeMoistureStats.stdDeviation}")
-      messaging ! SendMessage(Some("Moisture Stats standard deviation too high"), Some(statsState))
+    case statsState: StatsState if statsState.deltaFromAverage(statsState.latestMeasure.relativeMoisture, statsState.relativeMoistureStats) >= relativeMoistureDeltaFromAverageThreshold => {
+      messaging ! SendMessage(Some("Moisture is above accepted average threshold"), Some(statsState))
     }
 
-    case unexpected => println(s"${self.path.name} Receive ${unexpected}")
+    case unexpected => log warning (s"${self.path.name} Receive ${unexpected}")
   }
 
   def addMeasure(measure: Measure) = {

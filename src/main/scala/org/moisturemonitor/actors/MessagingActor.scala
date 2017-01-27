@@ -19,6 +19,7 @@ package org.moisturemonitor.actors
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import io.scalac.slack.bots.AbstractBot
 import io.scalac.slack.bots.system.{CommandsRecognizerBot, HelpBot}
 import io.scalac.slack.common.actors.SlackBotActor
@@ -31,6 +32,7 @@ import org.scala_tools.time.StaticDateTimeFormat
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+
 object MessagingMessages {
 
   case class SendMessage(message: Option[String], data: Option[Any])
@@ -41,20 +43,26 @@ class MessagingActor(slackBot: ActorRef) extends Actor with ActorLogging {
 
   import MessagingMessages._
 
+  val config = ConfigFactory.defaultApplication().getConfig("app-settings.messaging")
+  val channel = config.getString("channel")
+
   def receive = {
     case SendMessage(message: Option[String], data: Option[Any]) => {
-      slackBot forward DispatchCommandMessage("moisture-bot", DispatchCommand("send-message", List(message, data), "C3M5DR334"))
+      slackBot forward DispatchCommandMessage("moisture-bot", DispatchCommand("send-message", List(message, data), channel))
     }
-    case unexpected => println(s"${self.path.name} receive ${unexpected}")
+    case unexpected => log warning (s"${self.path.name} receive ${unexpected}")
   }
 }
 
 
 class BotsBundle(eventBus: MessageEventBus) extends BotModules {
+  val config = ConfigFactory.defaultApplication().getConfig("app-settings.messaging")
+  val sensorPath = config.getString("sensorPath")
+
   override def registerModules(context: ActorContext, websocketClient: ActorRef) = {
     context.actorOf(Props(classOf[CommandsRecognizerBot], eventBus), "commandProcessor")
     context.actorOf(Props(classOf[HelpBot], eventBus), "helpBot")
-    context.actorOf(Props(classOf[MoistureBot], eventBus, "user/sensorActor"), "moisture-bot")
+    context.actorOf(Props(classOf[MoistureBot], eventBus, sensorPath), "moisture-bot")
   }
 }
 
@@ -65,7 +73,7 @@ case class DispatchCommand(command: String, params: List[Any], channel: String)
 class CustomSlackBotActor(modules: BotModules, eventBus: MessageEventBus, master: Shutdownable, usersStorageOpt: Option[ActorRef] = None) extends SlackBotActor(modules, eventBus, master, usersStorageOpt) {
   override def receive: Receive = super.receive orElse {
     case DispatchCommandMessage(botName, command) => {
-      log.info(s"Dispatch command ${command.command} to $botName")
+      log info(s"Dispatch command ${command.command} to $botName")
       context.actorSelection(botName).forward(command)
     }
   }
@@ -98,6 +106,7 @@ class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) ex
 
   def format(message: Option[String], statsState: StatsState): String = {
     return format(message) +
+      format(Some("Latest measure"), statsState.latestMeasure) + "\\n" +
       format("temperature", statsState.temperatureStats, "°") + "\\n" +
       format("moisture", statsState.relativeMoistureStats, "%")
   }

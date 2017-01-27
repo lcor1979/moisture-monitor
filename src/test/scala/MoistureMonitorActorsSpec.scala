@@ -150,12 +150,13 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
       messagingActorProbe.expectMsg(SendMessage(Some("Moisture too high"), Some(expectedMeasure)))
     }
 
-    "Send a message to Messaging actor if moisture standard deviation stats is above the threshold" in {
-      var expectedStats = StatsState(Nil, Stats(1.0, 1.0, 1.0), Stats(2.0, 2.0, 12.0))
+    "Send a message to Messaging actor if moisture is above the average threshold" in {
+      val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 85.0, 50.0)
+      val expectedStats = StatsState(List(expectedMeasure), Stats(1.0, 1.0, 1.0), Stats(2.0, 2.0, 12.0))
 
       mainActorRef ! expectedStats
 
-      messagingActorProbe.expectMsg(SendMessage(Some("Moisture Stats standard deviation too high"), Some(expectedStats)))
+      messagingActorProbe.expectMsg(SendMessage(Some("Moisture is above accepted average threshold"), Some(expectedStats)))
     }
 
     "Send a message to Messaging actor if battery is below the threshold" in {
@@ -177,7 +178,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
 
       messagingActorRef ! SendMessage(Some("message"), Some(expectedMeasure))
 
-      slackBotActorProbe.expectMsg(DispatchCommandMessage("moisture-bot", DispatchCommand("send-message", List(Some("message"), Some(expectedMeasure)), "C3M5DR334")))
+      slackBotActorProbe.expectMsg(DispatchCommandMessage("moisture-bot", DispatchCommand("send-message", List(Some("message"), Some(expectedMeasure)), "channel")))
     }
 
   }
