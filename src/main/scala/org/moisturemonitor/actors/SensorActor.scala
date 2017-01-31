@@ -64,3 +64,54 @@ object FakeSensor extends Sensor {
     (DateTime.now, temperature, relativeMoisture, batteryLevel)
   }
 }
+/*
+object SensorMeasureReceiverServer {
+
+
+  class Auction extends Actor {
+    def receive = {
+      case Bid(userId, bid) => println(s"Bid complete: $userId, $bid")
+      case _ => println("Invalid message")
+    }
+  }
+
+  // these are from spray-json
+  implicit val measureFormat = akka.http.scaladsl.marshalling.J.SprayJsonSupport.jsonFormat(Bid)
+  implicit val bidsFormat = jsonFormat1(Bids)
+
+  def main(args: Array[String]) {
+    implicit val system = ActorSystem()
+    implicit val materializer = ActorMaterializer()
+    // needed for the future flatMap/onComplete in the end
+    implicit val executionContext = system.dispatcher
+
+    val auction = system.actorOf(Props[Auction], "auction")
+
+    val route =
+      path("auction") {
+        put {
+          parameter("bid".as[Int], "user") { (bid, user) =>
+            // place a bid, fire-and-forget
+            auction ! Bid(user, bid)
+            complete((StatusCodes.Accepted, "bid placed"))
+          }
+        }
+        get {
+          implicit val timeout: Timeout = 5.seconds
+
+          // query the actor for the current auction state
+          val bids: Future[Bids] = (auction ? GetBids).mapTo[Bids]
+          complete(bids)
+        }
+      }
+
+    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
+    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
+    StdIn.readLine() // let it run until user presses return
+    bindingFuture
+      .flatMap(_.unbind()) // trigger unbinding from the port
+      .onComplete(_ => system.terminate()) // and shutdown when done
+
+  }
+}
+*/

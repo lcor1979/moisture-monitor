@@ -21,6 +21,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-contrib" % "2.4.14",
   //"com.typesafe.akka" %% "akka-remote" % "2.4.14",
   "com.typesafe.akka" %% "akka-testkit" % "2.4.14",
+  "com.typesafe.akka" %% "akka-http-spray-json-experimental" % "2.4.11.1",
+  "com.typesafe.akka" %% "akka-http" % "10.0.3",
   "org.scalaj" %% "scalaj-time" % "0.8",
   // Slack
   "io.scalac" %% "slack-scala-bot-core" % "0.2.1",
