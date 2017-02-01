@@ -46,7 +46,7 @@ class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends 
     case measure: Measure => {
       addMeasure(measure)
     }
-    case statsState: StatsState if statsState.deltaFromAverage(statsState.latestMeasure.relativeMoisture, statsState.relativeMoistureStats) >= relativeMoistureDeltaFromAverageThreshold => {
+    case statsState: StatsState if statsState.latestMeasure.isDefined && statsState.deltaFromAverage(statsState.latestMeasure.get.relativeMoisture, statsState.relativeMoistureStats) >= relativeMoistureDeltaFromAverageThreshold => {
       messaging ! SendMessage(Some("Moisture is above accepted average threshold"), Some(statsState))
     }
 

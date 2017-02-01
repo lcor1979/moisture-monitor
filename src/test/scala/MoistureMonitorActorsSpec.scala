@@ -230,7 +230,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
 
     "Publish send-message commands with stats" in {
       val text = "text"
-      var expectedStats = StatsState(Nil, Stats(1.0, 1.0, 1.0), Stats(2.0, 2.0, 2.0))
+      var expectedStats = StatsState(List(Measure(DateTime.now(), 1.0, 1.0, 100.0)), Stats(1.0, 1.0, 1.0), Stats(2.0, 2.0, 2.0))
       val expectedMessage = moistureBotRef.underlyingActor.asInstanceOf[MoistureBot].format(Some(text), expectedStats)
 
       moistureBotRef ! DispatchCommand("send-message", List(Some(text), Some(expectedStats)), "channel")

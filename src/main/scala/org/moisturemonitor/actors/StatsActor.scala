@@ -30,7 +30,7 @@ object StatsMessages {
   case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0) extends JacksonJsonSerializable
   case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) extends JacksonJsonSerializable {
     def size: Int = events.length
-    def latestMeasure: Measure = events.last
+    def latestMeasure: Option[Measure] = events.lastOption
     def deltaFromAverage(value: Double, stats:Stats): Double = value - stats.average
   }
 
