@@ -106,7 +106,7 @@ class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) ex
 
   def format(message: Option[String], statsState: StatsState): String = {
     return format(message) +
-      format(Some("Latest measure"), statsState.latestMeasure) + "\\n" +
+      format(Some("Latest measure"), statsState.latestMeasure.get) + "\\n" +
       format("temperature", statsState.temperatureStats, "°") + "\\n" +
       format("moisture", statsState.relativeMoistureStats, "%")
   }
