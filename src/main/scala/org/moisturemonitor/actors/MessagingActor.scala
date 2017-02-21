@@ -25,7 +25,7 @@ import io.scalac.slack.bots.system.{CommandsRecognizerBot, HelpBot}
 import io.scalac.slack.common.actors.SlackBotActor
 import io.scalac.slack.common.{BaseMessage, Command, OutboundMessage, Shutdownable}
 import io.scalac.slack.{BotModules, MessageEventBus}
-import org.moisturemonitor.actors.SensorMessages.{GetMeasure, Measure}
+import org.moisturemonitor.actors.Messages.{GetLatestMeasure, Measure}
 import org.moisturemonitor.actors.StatsMessages.{Stats, StatsState}
 import org.scala_tools.time.StaticDateTimeFormat
 
@@ -57,12 +57,12 @@ class MessagingActor(slackBot: ActorRef) extends Actor with ActorLogging {
 
 class BotsBundle(eventBus: MessageEventBus) extends BotModules {
   val config = ConfigFactory.defaultApplication().getConfig("app-settings.messaging")
-  val sensorPath = config.getString("sensorPath")
+  val coordinatorPath = config.getString("coordinatorPath")
 
   override def registerModules(context: ActorContext, websocketClient: ActorRef) = {
     context.actorOf(Props(classOf[CommandsRecognizerBot], eventBus), "commandProcessor")
     context.actorOf(Props(classOf[HelpBot], eventBus), "helpBot")
-    context.actorOf(Props(classOf[MoistureBot], eventBus, sensorPath), "moisture-bot")
+    context.actorOf(Props(classOf[MoistureBot], eventBus, coordinatorPath), "moisture-bot")
   }
 }
 
@@ -73,13 +73,13 @@ case class DispatchCommand(command: String, params: List[Any], channel: String)
 class CustomSlackBotActor(modules: BotModules, eventBus: MessageEventBus, master: Shutdownable, usersStorageOpt: Option[ActorRef] = None) extends SlackBotActor(modules, eventBus, master, usersStorageOpt) {
   override def receive: Receive = super.receive orElse {
     case DispatchCommandMessage(botName, command) => {
-      log info(s"Dispatch command ${command.command} to $botName")
+      log info (s"Dispatch command ${command.command} to $botName")
       context.actorSelection(botName).forward(command)
     }
   }
 }
 
-class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) extends AbstractBot {
+class MoistureBot(override val bus: MessageEventBus, coordinatorPath: String) extends AbstractBot {
 
   override def help(channel: String): OutboundMessage =
     OutboundMessage(channel, s"Usage: $$measure")
@@ -87,16 +87,21 @@ class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) ex
   override def act: Receive = {
     case Command("measure", _, BaseMessage(_, channel, _, _, _)) =>
       implicit val timeout = Timeout(5 seconds)
-      val sensorRef = Await.result(context.system.actorSelection(sensorActorName).resolveOne(), timeout.duration)
-      val measure: Measure = Await.result(ask(sensorRef, GetMeasure), timeout.duration).asInstanceOf[Measure]
+      val coordinator = Await.result(context.system.actorSelection(coordinatorPath).resolveOne(), timeout.duration)
+      val measure: Option[Measure] = Await.result(ask(coordinator, GetLatestMeasure), timeout.duration).asInstanceOf[Option[Measure]]
 
-      publish(OutboundMessage(channel, format(None, measure)))
+      if (measure.isDefined) {
+        publish(OutboundMessage(channel, format(Some("Latest measure"), measure.get)))
+      }
+      else {
+        publish(OutboundMessage(channel, format(Some("No measure at this moment"))))
+      }
+    case DispatchCommand("send-message", List(message: Some[String], None), channel) =>
+      publish(OutboundMessage(channel, format(message)))
     case DispatchCommand("send-message", List(message: Option[String], Some(measure: Measure)), channel) =>
       publish(OutboundMessage(channel, format(message, measure)))
     case DispatchCommand("send-message", List(message: Option[String], Some(statsState: StatsState)), channel) =>
       publish(OutboundMessage(channel, format(message, statsState)))
-    case DispatchCommand("send-message", List(message: Some[String], None), channel) =>
-      publish(OutboundMessage(channel, format(message)))
   }
 
   def format(message: Option[String]): String = message match {
@@ -119,7 +124,7 @@ class MoistureBot(override val bus: MessageEventBus, sensorActorName: String) ex
   }
 
   def format(message: Option[String], measure: Measure): String = {
-    return format(message) +
+    format(message) +
       s"`Timestamp` : *${StaticDateTimeFormat.forPattern("dd/MM/yyyy HH:mm:ss").print(measure.timestamp)}* \\n" +
       f"`Temperature` : *${measure.temperature}%.1f°* \\n" +
       f"`Relative moisture` : *${measure.relativeMoisture}%.1f%%* \\n" +

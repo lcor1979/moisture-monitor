@@ -21,7 +21,7 @@ import akka.persistence.{PersistentActor, SaveSnapshotSuccess, SnapshotOffer}
 import com.typesafe.config.ConfigFactory
 import no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializable
 import org.joda.time.DateTime
-import org.moisturemonitor.actors.SensorMessages.Measure
+import org.moisturemonitor.actors.Messages.Measure
 
 object StatsMessages {
 

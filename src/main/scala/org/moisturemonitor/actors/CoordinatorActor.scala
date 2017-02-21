@@ -18,9 +18,27 @@ package org.moisturemonitor.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.typesafe.config.ConfigFactory
+import no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializable
+import org.joda.time.DateTime
+import org.moisturemonitor.actors.Messages.Measure
 import org.moisturemonitor.actors.MessagingMessages.SendMessage
 
-class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends Actor with ActorLogging{
+object Messages {
+
+  case object GetLatestMeasure
+
+  case class Measure(timestamp: DateTime, temperature: Double, relativeMoisture: Double, batteryLevel: Double) extends JacksonJsonSerializable {
+    override def toString: String = {
+      s"Timestamp : ${timestamp} \n" +
+        f"Temperature : ${temperature}%.1f° \n" +
+        f"Relative moisture : ${relativeMoisture}%.1f%% \n" +
+        f"Battery level : ${batteryLevel}%.1f%%"
+    }
+  }
+
+}
+
+class CoordinatorActor(stats: ActorRef, messaging: ActorRef) extends Actor with ActorLogging{
 
   val config = ConfigFactory.defaultApplication().getConfig("app-settings.alarm-thresholds")
 
@@ -28,13 +46,12 @@ class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends 
   val relativeMoistureThreshold = config.getDouble("relativeMoisture")
   val relativeMoistureDeltaFromAverageThreshold = config.getDouble("relativeMoistureDeltaFromAverage")
 
-  import SensorMessages._
+  var latestMeasure:Option[Measure] = None
+
+  import Messages._
   import StatsMessages._
 
   def receive = {
-    case GetMeasure => {
-      sensor ! GetMeasure
-    }
     case measure: Measure if measure.batteryLevel < batteryLevelThreshold => {
       addMeasure(measure)
       messaging ! SendMessage(Some("Low battery"), Some(measure))
@@ -49,11 +66,14 @@ class MainActor(sensor: ActorRef, stats: ActorRef, messaging: ActorRef) extends 
     case statsState: StatsState if statsState.latestMeasure.isDefined && statsState.deltaFromAverage(statsState.latestMeasure.get.relativeMoisture, statsState.relativeMoistureStats) >= relativeMoistureDeltaFromAverageThreshold => {
       messaging ! SendMessage(Some("Moisture is above accepted average threshold"), Some(statsState))
     }
-
+    case GetLatestMeasure => {
+      sender() ! latestMeasure
+    }
     case unexpected => log warning (s"${self.path.name} Receive ${unexpected}")
   }
 
   def addMeasure(measure: Measure) = {
+    latestMeasure = Some(measure)
     stats ! AddMeasure(measure)
   }
 }
