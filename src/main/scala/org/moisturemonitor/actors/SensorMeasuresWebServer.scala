@@ -16,12 +16,12 @@
 
 package org.moisturemonitor.actors
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.ActorMaterializer
 import org.joda.time.DateTime
 import org.moisturemonitor.actors.Messages.Measure
@@ -31,6 +31,7 @@ import spray.json.{DefaultJsonProtocol, JsNumber, JsValue, RootJsonFormat}
 import scala.concurrent.{ExecutionContext, Future};
 
 object SensorMeasuresWebServer {
+
   /**
     * Json protocol supporting Joda DateTime and Measure format
     */
@@ -53,14 +54,14 @@ object SensorMeasuresWebServer {
 
   import SensorMeasuresWebServerJsonProtocol._
 
-  var bindingFutureOption:Option[Future[ServerBinding]] = None
+  var bindingFutureOption: Option[Future[ServerBinding]] = None
 
   /**
     * Start the webserver that will dispatch received measures to CoordinatorActor
     *
-    * @param port Port on which the server will listen
+    * @param port        Port on which the server will listen
     * @param coordinator CoordinatorActor reference
-    * @param system implicit ActorSystem
+    * @param system      implicit ActorSystem
     */
   def start(port: Int, coordinator: ActorRef)(implicit system: ActorSystem): Unit = {
     implicit val materializer = ActorMaterializer()

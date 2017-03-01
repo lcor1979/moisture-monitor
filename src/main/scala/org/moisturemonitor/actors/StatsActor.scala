@@ -26,12 +26,17 @@ import org.moisturemonitor.actors.Messages.Measure
 object StatsMessages {
 
   case class AddMeasure(measure: Measure)
+
   case class GetStats()
+
   case class Stats(average: Double = 0.0, variance: Double = 0.0, stdDeviation: Double = 0.0) extends JacksonJsonSerializable
+
   case class StatsState(events: List[Measure] = Nil, temperatureStats: Stats = Stats(), relativeMoistureStats: Stats = Stats()) extends JacksonJsonSerializable {
     def size: Int = events.length
+
     def latestMeasure: Option[Measure] = events.lastOption
-    def deltaFromAverage(value: Double, stats:Stats): Double = value - stats.average
+
+    def deltaFromAverage(value: Double, stats: Stats): Double = value - stats.average
   }
 
   object Stats {
@@ -43,6 +48,7 @@ object StatsMessages {
       apply(average, variance, stdDeviation)
     }
   }
+
 }
 
 /**
@@ -73,7 +79,7 @@ class StatsActor extends PersistentActor with ActorLogging {
   val receiveRecover: Receive = {
     case measure: Measure => updateState(measure)
     case SnapshotOffer(_, snapshot: StatsState) => state = snapshot
-    case SaveSnapshotSuccess => log debug("Snapshot saved")
+    case SaveSnapshotSuccess => log debug ("Snapshot saved")
   }
 
   val receiveCommand: Receive = {

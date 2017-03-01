@@ -15,21 +15,14 @@
  */
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.marshalling.{Marshal, PredefinedToEntityMarshallers}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.stream.ActorMaterializer
 import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
 import org.moisturemonitor.actors.Messages.Measure
 import org.moisturemonitor.actors.SensorMeasuresWebServer
 import org.scalatest.{Matchers, WordSpec}
-import spray.json
-import spray.json.{DefaultJsonProtocol, JsNumber, JsValue, RootJsonFormat}
-
-import scala.concurrent.Await
-import scala.concurrent.duration.DurationLong
 
 class SensorMeasuresWebServerSpec
   extends WordSpec

@@ -37,8 +37,9 @@ object MessagingMessages {
 
   /**
     * Use this message class to ask MessagingActor to send a message through Slackbot
+    *
     * @param message Optional message text
-    * @param data Optional message data
+    * @param data    Optional message data
     */
   case class SendMessage(message: Option[String], data: Option[Any])
 
@@ -46,6 +47,7 @@ object MessagingMessages {
 
 /**
   * Actor which transform SendMessage requests to DispatchCommandMessage and dispatch them to Slakbot
+  *
   * @param slackBot
   */
 class MessagingActor(slackBot: ActorRef) extends Actor with ActorLogging {
@@ -65,6 +67,7 @@ class MessagingActor(slackBot: ActorRef) extends Actor with ActorLogging {
 
 /**
   * BotModules configuration
+  *
   * @param eventBus
   */
 class BotsBundle(eventBus: MessageEventBus) extends BotModules {
@@ -92,7 +95,7 @@ case class DispatchCommandMessage(botName: String, command: DispatchCommand)
   * Case class wrapping a Slack bot command, its parameters and the target channel
   *
   * @param command command text
-  * @param params params list of the command
+  * @param params  params list of the command
   * @param channel target channel
   */
 case class DispatchCommand(command: String, params: List[Any], channel: String)
@@ -114,7 +117,7 @@ class DispatchCommandMessageSlackBotActor(modules: BotModules, eventBus: Message
   *
   * It also support the "measure" Command which will get the latest measure received by CoordinatorActor and publish it
   *
-  * @param bus Event bus
+  * @param bus             Event bus
   * @param coordinatorPath path of the CoordinatorActor
   */
 class MoistureBot(override val bus: MessageEventBus, coordinatorPath: String) extends AbstractBot {
