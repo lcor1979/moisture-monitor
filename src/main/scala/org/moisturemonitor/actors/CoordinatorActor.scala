@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License..
+ * limitations under the License.
  */
 
 package org.moisturemonitor.actors
@@ -38,7 +38,20 @@ object Messages {
 
 }
 
-class CoordinatorActor(stats: ActorRef, messaging: ActorRef) extends Actor with ActorLogging{
+/**
+  * Actor responsible of coordination between stats actor and messaging actor
+  *
+  * It is the actor receiving measures from the SensorMeasuresWebServer.
+  *
+  * On new measure, it will :
+  *   - Record latest measure (non persistent)
+  *   - Dispatch it to stats actor for persistence and statistics
+  *   - If message or stats has reach monitoring thresholds, dispatch it to messaging actor
+  *
+  * @param stats
+  * @param messaging
+  */
+class CoordinatorActor(stats: ActorRef, messaging: ActorRef) extends Actor with ActorLogging {
 
   val config = ConfigFactory.defaultApplication().getConfig("app-settings.alarm-thresholds")
 
@@ -46,7 +59,7 @@ class CoordinatorActor(stats: ActorRef, messaging: ActorRef) extends Actor with 
   val relativeMoistureThreshold = config.getDouble("relativeMoisture")
   val relativeMoistureDeltaFromAverageThreshold = config.getDouble("relativeMoistureDeltaFromAverage")
 
-  var latestMeasure:Option[Measure] = None
+  var latestMeasure: Option[Measure] = None
 
   import Messages._
   import StatsMessages._

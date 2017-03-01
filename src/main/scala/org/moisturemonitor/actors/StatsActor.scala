@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License..
+ * limitations under the License.
  */
 
 package org.moisturemonitor.actors
@@ -45,6 +45,9 @@ object StatsMessages {
   }
 }
 
+/**
+  * Persistent actor that keeps the measures and calculate statistics on them
+  */
 class StatsActor extends PersistentActor with ActorLogging {
 
   val config = ConfigFactory.defaultApplication().getConfig("app-settings")
