@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License..
+ * limitations under the License.
  */
 
 import akka.actor.{Actor, ActorSystem, PoisonPill, Props}
@@ -26,8 +26,8 @@ import no.nextgentel.oss.akkatools.serializing.JacksonJsonSerializer
 import org.joda.time.DateTime
 import org.mockito.Matchers._
 import org.mockito.Mockito._
+import org.moisturemonitor.actors.Messages.{GetLatestMeasure, Measure}
 import org.moisturemonitor.actors.MessagingMessages.SendMessage
-import org.moisturemonitor.actors.SensorMessages.{GetMeasure, Measure}
 import org.moisturemonitor.actors.StatsMessages.{AddMeasure, GetStats, Stats, StatsState}
 import org.moisturemonitor.actors._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -42,20 +42,6 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
 
   override def afterAll = {
     TestKit.shutdownActorSystem(system)
-  }
-
-  "Sensor Actor" should {
-    val sensor = mock(classOf[Sensor])
-    val sensorRef = TestActorRef(Props(classOf[SensorActor], sensor))
-
-    "Send measures" in {
-      val expectedMeasure = (DateTime.now, 1.0, 1.0, 1.0)
-      doReturn(expectedMeasure).when(sensor).measure
-
-      sensorRef ! GetMeasure
-
-      expectMsg(Measure(expectedMeasure._1, expectedMeasure._2, expectedMeasure._3, expectedMeasure._4))
-    }
   }
 
   "Stats Actor" should {
@@ -119,23 +105,36 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
     }
   }
 
-  "Main Actor" should {
-    val sensorActorProbe = TestProbe()
+  "Coordinator Actor" should {
     val statsActorProbe = TestProbe()
     val messagingActorProbe = TestProbe()
-    val mainActorRef = TestActorRef(Props(classOf[MainActor], sensorActorProbe.ref, statsActorProbe.ref, messagingActorProbe.ref))
+    val coordinatorActorRef = TestActorRef(Props(classOf[CoordinatorActor], statsActorProbe.ref, messagingActorProbe.ref))
 
-    "Send GetMeasure command to sensor actor" in {
+    "Send None on GetLatestMeasure command if no measure has been done" in {
+      val blankCoordinatorActorRef = TestActorRef(Props(classOf[CoordinatorActor], statsActorProbe.ref, messagingActorProbe.ref))
 
-      mainActorRef ! GetMeasure
+      blankCoordinatorActorRef ! GetLatestMeasure
 
-      sensorActorProbe.expectMsg(GetMeasure)
+      expectMsg(None)
     }
+
+    "Send Some(Latest Measure) on GetLatestMeasure command" in {
+      val expectedMeasure: Measure = Measure(DateTime.now, 50.0, 50.0, 50.0)
+
+      coordinatorActorRef ! expectedMeasure
+
+      statsActorProbe.expectMsg(AddMeasure(expectedMeasure))
+
+      coordinatorActorRef ! GetLatestMeasure
+
+      expectMsg(Some(expectedMeasure))
+    }
+
 
     "Forward received measure to stats actor" in {
       val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 1.0, 50.0)
 
-      mainActorRef ! expectedMeasure
+      coordinatorActorRef ! expectedMeasure
 
       statsActorProbe.expectMsg(AddMeasure(expectedMeasure))
       messagingActorProbe.expectNoMsg()
@@ -144,7 +143,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
     "Send a message to Messaging actor if a moisture measure is above the threshold" in {
       val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 85.0, 50.0)
 
-      mainActorRef ! expectedMeasure
+      coordinatorActorRef ! expectedMeasure
 
       statsActorProbe.expectMsg(AddMeasure(expectedMeasure))
       messagingActorProbe.expectMsg(SendMessage(Some("Moisture too high"), Some(expectedMeasure)))
@@ -154,7 +153,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
       val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 85.0, 50.0)
       val expectedStats = StatsState(List(expectedMeasure), Stats(1.0, 1.0, 1.0), Stats(2.0, 2.0, 12.0))
 
-      mainActorRef ! expectedStats
+      coordinatorActorRef ! expectedStats
 
       messagingActorProbe.expectMsg(SendMessage(Some("Moisture is above accepted average threshold"), Some(expectedStats)))
     }
@@ -162,7 +161,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
     "Send a message to Messaging actor if battery is below the threshold" in {
       val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 85.0, 5.0)
 
-      mainActorRef ! expectedMeasure
+      coordinatorActorRef ! expectedMeasure
 
       statsActorProbe.expectMsg(AddMeasure(expectedMeasure))
       messagingActorProbe.expectMsg(SendMessage(Some("Low battery"), Some(expectedMeasure)))
@@ -188,7 +187,7 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
     val expectedMeasure: Measure = Measure(DateTime.now, 1.0, 1.0, 1.0)
     class TestSensorActor(val expectedMeasure: Measure) extends Actor {
       override def receive: Receive = {
-        case GetMeasure => sender() ! expectedMeasure
+        case GetLatestMeasure => sender() ! Some(expectedMeasure)
       }
     }
 
@@ -202,8 +201,8 @@ class MoistureMonitorActorsSpec extends TestKit(ActorSystem("testSystem", Config
       verify(messageEventBus).publish(OutboundMessage("channel", anyString()))
     }
 
-    "Publish measure commands" in {
-      val expectedMessage = moistureBotRef.underlyingActor.asInstanceOf[MoistureBot].format(None, expectedMeasure)
+    "Publish latest measure commands" in {
+      val expectedMessage = moistureBotRef.underlyingActor.asInstanceOf[MoistureBot].format(Some("Latest measure"), expectedMeasure)
 
       moistureBotRef ! Command("measure", List(), BaseMessage("", "channel", "", "", false))
 
