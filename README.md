@@ -16,3 +16,5 @@ It is released under Apache 2.0 license.
 
 It still needs some documentation, fine tuning and debugging.
 Also, as I am a noob in Scala and Akka, any advice is more than welcome !
+
+[![Build Status](https://travis-ci.org/lcor1979/moisture-monitor.svg?branch=master)](https://travis-ci.org/lcor1979/moisture-monitor)
